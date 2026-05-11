@@ -116,14 +116,6 @@ dotnet backlog-2-spec spec 12345 --raw
 dotnet backlog-2-spec spec 12345 --raw | jq .summary
 ```
 
-### Budget control
-
-```bash
-dotnet backlog-2-spec spec 12345 --budget 5.00
-```
-
-The tool tracks cumulative token spend and refuses to run once the monthly limit is reached (default: $20.00).
-
 ### Dry run without external calls
 
 ```bash
@@ -144,8 +136,6 @@ Runs the full pipeline with mock implementations — no ADO or AI calls. Useful 
 
 **Consistent across the team.** Every spec produced by the tool follows the same structure and style. Gherkin scenarios, component lists, test strategy — all formatted the same way, regardless of who runs it.
 
-**Cost-aware by default.** The built-in budget tracker accumulates spend across runs and blocks execution if the configured limit is exceeded, so there are no surprise AI bills.
-
 ---
 
 ## Additional features
@@ -164,21 +154,6 @@ Use it to:
 - Try the full pipeline in CI or on a machine without secrets configured
 
 Mock mode is detected at startup (before the DI container is built), so it works even if `AzureAI:*` secrets are not set.
-
-### Cost tracking
-
-The tool tracks token usage across every LLM call in a pipeline run — enrichment, spec generation, and any retry attempts — and estimates cost using GPT-4o pricing ($2.50 / million input tokens, $10.00 / million output tokens).
-
-Before each LLM call, the accumulated cost is checked against the configured limit. If the limit would be exceeded, the run is aborted immediately with a summary panel showing the current cost, the limit, and a tip to reduce prompt size or raise the cap.
-
-```bash
-# Set a per-run cap of $1.00
-dotnet backlog-2-spec spec 12345 --budget 1.00
-```
-
-The default limit is $20.00. The check happens within a single invocation — there is no cross-run persistence, so each run starts fresh.
-
-The cost model reflects GPT-4o pricing. If you switch to a different model via `AzureAI:DeploymentName`, the token counts will still be tracked but the dollar estimate may not match your actual bill.
 
 ---
 

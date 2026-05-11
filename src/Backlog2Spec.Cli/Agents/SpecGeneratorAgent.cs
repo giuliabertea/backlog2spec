@@ -1,11 +1,9 @@
 using System.Text.Json;
 using Backlog2Spec.Cli.Config;
 using Backlog2Spec.Cli.Models;
-using Backlog2Spec.Cli.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
-using OpenAI.Chat;
 
 namespace Backlog2Spec.Cli.Agents;
 
@@ -21,14 +19,12 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
 
     private readonly Microsoft.SemanticKernel.Kernel _kernel;
     private readonly ILogger<SpecGeneratorAgent> _logger;
-    private readonly TokenUsageTracker _tokenTracker;
     private readonly string _promptTemplate;
 
-    public SpecGeneratorAgent(Microsoft.SemanticKernel.Kernel kernel, ILogger<SpecGeneratorAgent> logger, TokenUsageTracker tokenTracker)
+    public SpecGeneratorAgent(Microsoft.SemanticKernel.Kernel kernel, ILogger<SpecGeneratorAgent> logger)
     {
         _kernel = kernel;
         _logger = logger;
-        _tokenTracker = tokenTracker;
         _promptTemplate = LoadPrompt();
     }
 
@@ -44,8 +40,6 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
 
         for (int attempt = 0; attempt <= MaxRetries; attempt++)
         {
-            _tokenTracker.EnforceBudget();
-
             var chat = new ChatHistory();
             chat.AddUserMessage(prompt);
 
@@ -60,9 +54,6 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
                 },
                 _kernel,
                 ct);
-
-            var usage = response.Metadata?["Usage"] as ChatTokenUsage;
-            _tokenTracker.AddUsage(usage?.InputTokenCount ?? 0, usage?.OutputTokenCount ?? 0);
 
             lastRaw = response.Content ?? string.Empty;
             _logger.LogDebug("Spec generation response size: {Chars} chars (attempt {Attempt})", lastRaw.Length, attempt + 1);

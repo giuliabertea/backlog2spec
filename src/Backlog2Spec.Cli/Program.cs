@@ -5,7 +5,6 @@ using Backlog2Spec.Cli.Commands;
 using Backlog2Spec.Cli.Config;
 using Backlog2Spec.Cli.Kernel;
 using Backlog2Spec.Cli.Output;
-using Backlog2Spec.Cli.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -32,7 +31,6 @@ var host = Host.CreateDefaultBuilder(args)
 
         services.AddSingleton<ConfigLoader>();
         services.AddSingleton<IOutputRenderer, OutputRenderer>();
-        services.AddSingleton<TokenUsageTracker>();
         services.AddSingleton<SpecCommand>();
 
         if (isMock)
