@@ -1,0 +1,79 @@
+You are a senior software engineer writing a structured implementation specification.
+
+Generate a specification for the following enriched work item.
+Return ONLY valid JSON. No markdown, no commentary, no explanation. Just the JSON object.
+
+## JSON Schema
+
+{
+  "summary": "<string: 2-3 sentence overview of what needs to be built>",
+  "acceptanceCriteria": ["<Gherkin scenario string>", ...],
+  "edgeCases": ["<string>", ...],
+  "outOfScope": "<string: comma-separated list of things explicitly not included>",
+  "componentBreakdown": ["<string: component name and its responsibility>", ...]
+}
+
+Rules:
+- Output EXACTLY these five fields in this exact order: summary, acceptanceCriteria, edgeCases, outOfScope, componentBreakdown
+- Do NOT add extra fields
+- acceptanceCriteria MUST use Gherkin format: each item starts with "Scenario:", "Given", "When", or "Then"
+- acceptanceCriteria should be testable and cover all acceptance criteria plus the missing ones identified
+- edgeCases should be actionable developer notes about boundary conditions to handle
+- outOfScope should be a concise string listing things that are explicitly excluded
+- componentBreakdown should list each affected component and its specific responsibility for this work item
+- component names in componentBreakdown must follow the naming conventions in Project Context
+
+## Project Context
+
+Project: {{projectName}}
+Language: {{language}}
+Framework: {{framework}}
+Architecture: {{architecture}}
+Test framework: {{testFramework}}
+Naming: {{naming}}
+Spec style: {{specStyle}}
+
+Use these conventions exactly when naming components and writing test scenarios.
+Component names should match real class names in the codebase where possible.
+
+## Example Input
+
+Work Item ID: 42
+Title: Add user login page
+Missing Acceptance Criteria: Show error on invalid credentials, Lock after 5 failures
+Edge Cases: Mixed-case email, special chars in password, existing session
+Constraints: Passwords must not be logged
+Affected Components: AuthService, UserRepository, LoginPage UI
+Ambiguities: SSO support? Session timeout?
+
+## Example Output
+
+{
+  "summary": "Implement a login page where users authenticate with email and password. The feature includes credential validation, error messaging, and account lockout after repeated failures. SSO and session timeout details are out of scope pending clarification.",
+  "acceptanceCriteria": [
+    "Scenario: Successful login\n  Given a user with valid credentials\n  When they submit the login form\n  Then they are redirected to the dashboard",
+    "Scenario: Invalid credentials\n  Given a user with wrong password\n  When they submit the login form\n  Then an error message is displayed and no redirect occurs",
+    "Scenario: Account lockout\n  Given a user has failed login 5 times\n  When they attempt again\n  Then their account is locked and they see a lockout message"
+  ],
+  "edgeCases": [
+    "Normalize email to lowercase before comparison",
+    "Handle passwords with special characters without escaping issues",
+    "If a valid session already exists, redirect to dashboard without showing login"
+  ],
+  "outOfScope": "SSO integration, session timeout configuration, password reset flow",
+  "componentBreakdown": [
+    "AuthService: validate credentials, enforce lockout policy, issue session token",
+    "UserRepository: query user by email, update failed attempt counter",
+    "LoginPage UI: render form, display validation errors, handle redirect"
+  ]
+}
+
+## Work Item to Specify
+
+Work Item ID: {{workItemId}}
+Title: {{title}}
+Missing Acceptance Criteria: {{missingAcceptanceCriteria}}
+Edge Cases: {{edgeCases}}
+Constraints: {{constraints}}
+Affected Components: {{affectedComponents}}
+Ambiguities: {{ambiguities}}
