@@ -11,6 +11,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+static AiEndpointType ParseEndpointType(string? raw) => raw switch
+{
+    null or "" or "AzureOpenAI" => AiEndpointType.AzureOpenAI,
+    "AzureFoundry" => AiEndpointType.AzureFoundry,
+    _ => throw new InvalidOperationException(
+        $"Unknown AzureAI:EndpointType value '{raw}'. Valid values are: AzureOpenAI, AzureFoundry.")
+};
+
 bool isMock = args.Contains("--mock");
 
 var host = Host.CreateDefaultBuilder(args)
@@ -36,12 +44,13 @@ var host = Host.CreateDefaultBuilder(args)
         }
         else
         {
-            var endpoint = config["AzureOpenAI:Endpoint"] ?? throw new InvalidOperationException("AzureOpenAI:Endpoint secret is missing.");
-            var apiKey = config["AzureOpenAI:ApiKey"] ?? throw new InvalidOperationException("AzureOpenAI:ApiKey secret is missing.");
-            var deploymentName = config["AzureOpenAI:DeploymentName"] ?? throw new InvalidOperationException("AzureOpenAI:DeploymentName secret is missing.");
+            var endpoint = config["AzureAI:Endpoint"] ?? throw new InvalidOperationException("AzureAI:Endpoint secret is missing.");
+            var apiKey = config["AzureAI:ApiKey"] ?? throw new InvalidOperationException("AzureAI:ApiKey secret is missing.");
+            var deploymentName = config["AzureAI:DeploymentName"] ?? throw new InvalidOperationException("AzureAI:DeploymentName secret is missing.");
             var pat = config["Ado:Pat"] ?? throw new InvalidOperationException("Ado:Pat secret is missing.");
 
-            var kernel = new KernelFactory().Build(endpoint, apiKey, deploymentName);
+            var endpointType = ParseEndpointType(config["AzureAI:EndpointType"]);
+            var kernel = new KernelFactory().Build(endpoint, apiKey, deploymentName, endpointType);
 
             services.AddSingleton(kernel);
             services.AddSingleton<IEnrichmentAgent, EnrichmentAgent>();

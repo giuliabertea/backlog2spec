@@ -10,10 +10,10 @@ The output renders in the terminal with syntax highlighting, can be saved as a m
 
 ## Installation
 
-**Prerequisites:** [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8), an Azure DevOps account, and an Azure OpenAI resource with a deployed chat model (e.g. GPT-4o).
+**Prerequisites:** [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8), an Azure DevOps account, and either an [Azure AI Foundry](https://ai.azure.com) project with a deployed model or a classic Azure OpenAI resource (e.g. GPT-4o).
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/giuliabertea/backlog2spec
 cd Backlog2Spec
 
 dotnet pack src/Backlog2Spec.Cli -o ./nupkg
@@ -63,11 +63,23 @@ Credentials are stored via `dotnet user-secrets` — never in files:
 ```bash
 cd src/Backlog2Spec.Cli
 
-dotnet user-secrets set "AzureOpenAI:Endpoint"       "https://your-resource.openai.azure.com"
-dotnet user-secrets set "AzureOpenAI:ApiKey"         "your-api-key"
-dotnet user-secrets set "AzureOpenAI:DeploymentName" "gpt-4o"
-dotnet user-secrets set "Ado:Pat"                    "your-ado-pat"
+# Azure AI Foundry (recommended)
+dotnet user-secrets set "AzureAI:Endpoint"       "https://<endpoint>.<region>.inference.ai.azure.com"
+dotnet user-secrets set "AzureAI:ApiKey"         "your-api-key"
+dotnet user-secrets set "AzureAI:DeploymentName" "gpt-4o"
+dotnet user-secrets set "AzureAI:EndpointType"   "AzureFoundry"
+
+# Classic Azure OpenAI resource (omit AzureAI:EndpointType or set it to "AzureOpenAI")
+dotnet user-secrets set "AzureAI:Endpoint"       "https://your-resource.openai.azure.com"
+dotnet user-secrets set "AzureAI:ApiKey"         "your-api-key"
+dotnet user-secrets set "AzureAI:DeploymentName" "gpt-4o"
+
+dotnet user-secrets set "Ado:Pat"                "your-ado-pat"
 ```
+
+> **Migrating from a previous version?** The secret keys were renamed:
+> `AzureOpenAI:Endpoint` → `AzureAI:Endpoint`, `AzureOpenAI:ApiKey` → `AzureAI:ApiKey`, `AzureOpenAI:DeploymentName` → `AzureAI:DeploymentName`.
+> Re-run the `dotnet user-secrets set` commands above with the new names.
 
 Generate a PAT at `https://dev.azure.com/{org}/_usersSettings/tokens` with **Work Items: Read** scope (add **Code: Read** if you use `repoName`).
 
@@ -118,7 +130,7 @@ The tool tracks cumulative token spend and refuses to run once the monthly limit
 dotnet backlog-2-spec spec 12345 --mock
 ```
 
-Runs the full pipeline with mock implementations — no ADO or Azure OpenAI calls. Useful for testing config and output formatting.
+Runs the full pipeline with mock implementations — no ADO or AI calls. Useful for testing config and output formatting.
 
 ---
 
@@ -132,7 +144,7 @@ Runs the full pipeline with mock implementations — no ADO or Azure OpenAI call
 
 **Consistent across the team.** Every spec produced by the tool follows the same structure and style. Gherkin scenarios, component lists, test strategy — all formatted the same way, regardless of who runs it.
 
-**Cost-aware by default.** The built-in budget tracker accumulates spend across runs and blocks execution if the configured limit is exceeded, so there are no surprise Azure OpenAI bills.
+**Cost-aware by default.** The built-in budget tracker accumulates spend across runs and blocks execution if the configured limit is exceeded, so there are no surprise AI bills.
 
 ---
 
@@ -145,4 +157,4 @@ Runs the full pipeline with mock implementations — no ADO or Azure OpenAI call
 | `Authentication error: Failed to connect to Azure DevOps` | Invalid PAT or org URL | Re-set `Ado:Pat` and verify `ado.organization` |
 | `Authentication error: Authentication failed` | PAT expired or wrong scope | Generate a new PAT with Work Items: Read (and Code: Read if using repo context) |
 | `AI response error: LLM returned invalid JSON` | Model returned malformed JSON after 3 retries | Check deployment name and quota; try again |
-| `Unexpected error: AzureOpenAI:Endpoint secret is missing` | User secrets not set | Run the secrets setup commands above |
+| `Unexpected error: AzureAI:Endpoint secret is missing` | User secrets not set | Run the secrets setup commands above |
