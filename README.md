@@ -148,6 +148,40 @@ Runs the full pipeline with mock implementations — no ADO or AI calls. Useful 
 
 ---
 
+## Additional features
+
+### Mock mode
+
+```bash
+dotnet backlog-2-spec spec 12345 --mock
+```
+
+Mock mode replaces every external dependency — ADO client, enrichment agent, spec generator — with fast stub implementations that return fixed data. No credentials are required and no network calls are made.
+
+Use it to:
+- Verify your `backlog-2-spec.json` config is found and parsed correctly
+- Test output formatting and rendering without waiting for real AI responses
+- Try the full pipeline in CI or on a machine without secrets configured
+
+Mock mode is detected at startup (before the DI container is built), so it works even if `AzureAI:*` secrets are not set.
+
+### Cost tracking
+
+The tool tracks token usage across every LLM call in a pipeline run — enrichment, spec generation, and any retry attempts — and estimates cost using GPT-4o pricing ($2.50 / million input tokens, $10.00 / million output tokens).
+
+Before each LLM call, the accumulated cost is checked against the configured limit. If the limit would be exceeded, the run is aborted immediately with a summary panel showing the current cost, the limit, and a tip to reduce prompt size or raise the cap.
+
+```bash
+# Set a per-run cap of $1.00
+dotnet backlog-2-spec spec 12345 --budget 1.00
+```
+
+The default limit is $20.00. The check happens within a single invocation — there is no cross-run persistence, so each run starts fresh.
+
+The cost model reflects GPT-4o pricing. If you switch to a different model via `AzureAI:DeploymentName`, the token counts will still be tracked but the dollar estimate may not match your actual bill.
+
+---
+
 ## Troubleshooting
 
 | Error | Cause | Fix |
