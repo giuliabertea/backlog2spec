@@ -9,25 +9,20 @@ namespace Backlog2Spec.Cli.Agents;
 
 public sealed class CodebaseContextAgent : ICodebaseContextAgent
 {
-    private const int MaxFiles = 3;
-    private const int ContentMaxChars = 800;
+    private const int MaxFiles = 8;
+    private const int ContentMaxChars = 2000;
+    private const int CandidateMultiplier = 5;
 
     private static readonly HashSet<string> SourceExtensions =
         [".cs", ".ts", ".js", ".py", ".java", ".go", ".md"];
 
-    private static readonly string[] Stopwords =
-    [
-        "the", "and", "for", "with", "this", "that", "from", "have",
-        "not", "are", "was", "will", "add", "new", "fix", "update",
-        "when", "then", "given", "user", "should", "must", "able",
-        "into", "onto", "also", "each", "some", "more"
-    ];
-
     private readonly HttpClient _httpClient;
+    private readonly IKeywordExtractor _keywordExtractor;
     private readonly ILogger<CodebaseContextAgent> _logger;
 
-    public CodebaseContextAgent(string pat, ILogger<CodebaseContextAgent> logger)
+    public CodebaseContextAgent(string pat, IKeywordExtractor keywordExtractor, ILogger<CodebaseContextAgent> logger)
     {
+        _keywordExtractor = keywordExtractor;
         _logger = logger;
         var credentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($":{pat}"));
         _httpClient = new HttpClient();
@@ -45,29 +40,37 @@ public sealed class CodebaseContextAgent : ICodebaseContextAgent
         {
             var branch = config.Ado.Branch ?? "master";
             var filePaths = await ListFilePathsAsync(config, branch, ct);
-            var keywords = ExtractKeywords(workItem);
+            var keywords = await _keywordExtractor.ExtractAsync(workItem, ct);
 
             _logger.LogDebug("Codebase search: [{Keywords}] against {Count} files",
                 string.Join(", ", keywords), filePaths.Count);
 
-            var topPaths = filePaths
+            var candidatePaths = filePaths
                 .Where(p => SourceExtensions.Contains(System.IO.Path.GetExtension(p).ToLowerInvariant()))
                 .Select(p => (Path: p, Score: ScorePath(p, keywords)))
                 .Where(x => x.Score > 0)
                 .OrderByDescending(x => x.Score)
                 .ThenBy(x => x.Path.Length)
-                .Take(MaxFiles)
+                .Take(MaxFiles * CandidateMultiplier)
                 .Select(x => x.Path)
                 .ToList();
 
-            var results = new List<CodeFileDto>();
-            foreach (var path in topPaths)
+            var candidates = new List<CodeFileDto>();
+            foreach (var path in candidatePaths)
             {
                 var file = await FetchFileContentAsync(config, branch, path, ct);
-                if (file is not null) results.Add(file);
+                if (file is not null) candidates.Add(file);
             }
 
-            _logger.LogInformation("Fetched {Count} source files for codebase context", results.Count);
+            var results = candidates
+                .Select(f => (File: f, Score: ScoreContent(f.Content, keywords)))
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => x.File.Path.Length)
+                .Take(MaxFiles)
+                .Select(x => x.File)
+                .ToList();
+
+            _logger.LogInformation("Fetched {Count} source files for codebase context (from {Candidates} candidates)", results.Count, candidates.Count);
             return results;
         }
         catch (Exception ex)
@@ -130,20 +133,15 @@ public sealed class CodebaseContextAgent : ICodebaseContextAgent
         };
     }
 
-    private static IReadOnlyList<string> ExtractKeywords(WorkItemDto workItem)
-    {
-        var text = $"{workItem.Title} {workItem.WorkItemType}";
-        return [.. text
-            .Split([' ', '-', '_', '/', '\\', '.', ',', '(', ')'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(w => w.ToLowerInvariant())
-            .Where(w => w.Length > 3 && !Stopwords.Contains(w))
-            .Distinct()
-            .Take(5)];
-    }
-
     private static int ScorePath(string path, IReadOnlyList<string> keywords)
     {
         var lower = path.ToLowerInvariant();
         return keywords.Count(kw => lower.Contains(kw));
+    }
+
+    private static int ScoreContent(string content, IReadOnlyList<string> keywords)
+    {
+        var lower = content.ToLowerInvariant();
+        return keywords.Sum(kw => lower.Split(kw).Length - 1);
     }
 }

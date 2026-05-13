@@ -36,6 +36,12 @@ Spec style: {{specStyle}}
 Use these conventions exactly when naming components and writing test scenarios.
 Component names should match real class names in the codebase where possible.
 
+## Relevant Source Files
+
+The following files were identified as relevant to this work item. Use the actual class names, method signatures, and patterns you see here when naming components in componentBreakdown.
+
+{{codebaseContext}}
+
 ## Example Input
 
 Work Item ID: 42

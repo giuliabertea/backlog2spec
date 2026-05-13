@@ -85,7 +85,7 @@ public sealed class SpecCommand : Command
 
             if (!raw) _renderer.RenderProgress("Generating spec...");
             _logger.LogInformation("Generating spec for work item {WorkItemId}", id);
-            var spec = await _specGeneratorAgent.GenerateAsync(enriched, config, ct);
+            var spec = await _specGeneratorAgent.GenerateAsync(enriched, config, codebaseContext, ct);
 
             if (raw)
             {

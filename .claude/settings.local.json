@@ -33,7 +33,10 @@
       "Bash(Sort-Object FullName)",
       "Bash(Format-Table -AutoSize)",
       "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\" -Recurse -Force | Where-Object { -not $_.PSIsContainer } | Select-Object -Property @{Name='Path'; Expression={$_.FullName.Replace\\('c:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\\\\', ''\\)}} | Group-Object -Property {[System.IO.Path]::GetExtension\\($_\\)} | Select-Object Name, Count)",
-      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\\\\openspec\\\\changes\\\\migrate-to-azure-ai-foundry\\\\specs\\\\azure-ai-connector\" -Force)"
+      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\\\\openspec\\\\changes\\\\migrate-to-azure-ai-foundry\\\\specs\\\\azure-ai-connector\" -Force)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\" -Recurse -Include *.cs, *.json, *.csproj)",
+      "Bash(Select-Object FullName)",
+      "Bash(dir openspec *)"
     ]
   }
 }

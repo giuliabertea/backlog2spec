@@ -53,10 +53,12 @@ var host = Host.CreateDefaultBuilder(args)
             services.AddSingleton(kernel);
             services.AddSingleton<IEnrichmentAgent, EnrichmentAgent>();
             services.AddSingleton<ISpecGeneratorAgent, SpecGeneratorAgent>();
+            services.AddSingleton<IKeywordExtractor>(sp =>
+                new LlmKeywordExtractor(sp.GetRequiredService<Microsoft.SemanticKernel.Kernel>(), sp.GetRequiredService<ILogger<LlmKeywordExtractor>>()));
             services.AddSingleton<IAdoClient>(sp =>
                 new AdoClient(sp.GetRequiredService<ConfigLoader>(), pat));
             services.AddSingleton<ICodebaseContextAgent>(sp =>
-                new CodebaseContextAgent(pat, sp.GetRequiredService<ILogger<CodebaseContextAgent>>()));
+                new CodebaseContextAgent(pat, sp.GetRequiredService<IKeywordExtractor>(), sp.GetRequiredService<ILogger<CodebaseContextAgent>>()));
         }
 
         services.AddLogging(logging =>

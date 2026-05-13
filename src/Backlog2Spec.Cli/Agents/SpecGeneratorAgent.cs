@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Backlog2Spec.Cli.Ado;
 using Backlog2Spec.Cli.Config;
 using Backlog2Spec.Cli.Models;
 using Microsoft.Extensions.Logging;
@@ -28,11 +29,15 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
         _promptTemplate = LoadPrompt();
     }
 
-    public async Task<GeneratedSpec> GenerateAsync(EnrichedTicket enriched, AgentConfig config, CancellationToken ct = default)
+    public async Task<GeneratedSpec> GenerateAsync(
+        EnrichedTicket enriched,
+        AgentConfig config,
+        IReadOnlyList<CodeFileDto> codebaseContext,
+        CancellationToken ct = default)
     {
         _logger.LogInformation("Starting spec generation for work item {WorkItemId}", enriched.WorkItemId);
 
-        var prompt = BuildPrompt(enriched, config);
+        var prompt = BuildPrompt(enriched, config, codebaseContext);
         var chatService = _kernel.GetRequiredService<IChatCompletionService>();
 
         string lastRaw = string.Empty;
@@ -77,8 +82,13 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
         throw new LlmFormatException(lastRaw, lastException);
     }
 
-    private string BuildPrompt(EnrichedTicket enriched, AgentConfig config) =>
-        _promptTemplate
+    private string BuildPrompt(EnrichedTicket enriched, AgentConfig config, IReadOnlyList<CodeFileDto> codebaseContext)
+    {
+        var codebaseContextText = codebaseContext.Count > 0
+            ? string.Join("\n\n", codebaseContext.Select(f => $"File: {f.Path}\n---\n{f.Content}"))
+            : "No codebase context available.";
+
+        return _promptTemplate
             .Replace("{{projectName}}", config.Project.Name)
             .Replace("{{language}}", config.Project.Language)
             .Replace("{{framework}}", config.Project.Framework)
@@ -86,6 +96,7 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
             .Replace("{{testFramework}}", config.Project.TestFramework)
             .Replace("{{naming}}", config.Conventions.Naming)
             .Replace("{{specStyle}}", config.Conventions.SpecStyle)
+            .Replace("{{codebaseContext}}", codebaseContextText)
             .Replace("{{workItemId}}", enriched.WorkItemId.ToString())
             .Replace("{{title}}", enriched.Title)
             .Replace("{{missingAcceptanceCriteria}}", string.Join(", ", enriched.MissingAcceptanceCriteria))
@@ -93,6 +104,7 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
             .Replace("{{constraints}}", string.Join(", ", enriched.Constraints))
             .Replace("{{affectedComponents}}", string.Join(", ", enriched.AffectedComponents))
             .Replace("{{ambiguities}}", string.Join(", ", enriched.Ambiguities));
+    }
 
     private static string LoadPrompt()
     {
