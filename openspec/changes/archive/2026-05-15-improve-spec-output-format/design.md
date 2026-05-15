@@ -54,4 +54,4 @@ Each bullet describes a code behaviour ("Increment failed attempt counter on wro
 
 ## Open Questions
 
-- Should the markdown renderer use a `filesToChange` code block or a plain list? (Current proposal: plain list with bold path, matching existing componentBreakdown style — keeps it simple and readable in GitHub/ADO markdown preview.)
+- ~~Should the markdown renderer use a `filesToChange` code block or a plain list?~~ **Resolved:** plain list with bold path (`- **path**: description`), consistent with the existing `componentBreakdown` style and readable in GitHub/ADO markdown preview. The same bold-path pattern is applied to the console renderer using Spectre.Console markup.

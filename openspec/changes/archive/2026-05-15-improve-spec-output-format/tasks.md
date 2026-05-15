@@ -25,3 +25,9 @@
 - [x] 5.1 Build the solution and confirm no compilation errors
 - [x] 5.2 Run with `--mock` flag and verify the console output shows Goal / Behaviour / Edge Cases / Out of Scope / Files to Change sections
 - [x] 5.3 Run with `--output` flag and verify the generated markdown file uses the new headings and no Gherkin blocks
+
+## 6. Fix verification warnings (W1 + W2)
+
+- [x] 6.1 Fix double-colon bug in `WriteHierarchyToFiles`: change `f[colonIdx..]` → `f[(colonIdx + 1)..]` (same fix already applied to `RenderMarkdown`)
+- [x] 6.2 Bold the path portion of `FilesToChange` entries in `RenderSpec` (console renderer) to match the spec scenario
+- [x] 6.3 Close the open question in `design.md`: document that plain list with bold path was chosen for markdown output

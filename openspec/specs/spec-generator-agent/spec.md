@@ -2,24 +2,24 @@
 
 ## Purpose
 
-The `SpecGeneratorAgent` is responsible for transforming an `EnrichedTicket` into a structured `GeneratedSpec` using an Azure OpenAI model via Semantic Kernel. It enforces a fixed section order (Summary, AcceptanceCriteria, EdgeCases, OutOfScope, ComponentBreakdown), applies retry logic for LLM format failures, and uses a low temperature setting to maximize output determinism.
+The `SpecGeneratorAgent` is responsible for transforming an `EnrichedTicket` into a structured `GeneratedSpec` using an Azure OpenAI model via Semantic Kernel. It enforces a fixed section order (Goal, Behaviour, EdgeCases, OutOfScope, FilesToChange), applies retry logic for LLM format failures, and uses a low temperature setting to maximize output determinism.
 
 ## Requirements
 
 ### Requirement: Generate structured spec from enriched ticket
-The `SpecGeneratorAgent` SHALL accept an `EnrichedTicket` and `AgentConfig`, invoke the Azure OpenAI model via Semantic Kernel, and return a `GeneratedSpec`. The `GeneratedSpec` SHALL always contain exactly these sections in this order: `Summary`, `AcceptanceCriteria` (Gherkin), `EdgeCases`, `OutOfScope`, `ComponentBreakdown`. No additional sections SHALL be added.
+The `SpecGeneratorAgent` SHALL accept an `EnrichedTicket` and `AgentConfig`, invoke the Azure OpenAI model via Semantic Kernel, and return a `GeneratedSpec`. The `GeneratedSpec` SHALL always contain exactly these sections in this order: `Goal`, `Behaviour`, `EdgeCases`, `OutOfScope`, `FilesToChange`. No additional sections SHALL be added.
 
 #### Scenario: Valid enriched ticket produces fully populated GeneratedSpec
 - **WHEN** `GenerateAsync(enrichedTicket, config)` is called with a complete `EnrichedTicket`
-- **THEN** the returned `GeneratedSpec` has non-empty `Summary`, `AcceptanceCriteria`, `EdgeCases`, `OutOfScope`, and `ComponentBreakdown` properties
+- **THEN** the returned `GeneratedSpec` has non-empty `Goal`, `Behaviour`, `EdgeCases`, `OutOfScope`, and `FilesToChange` properties
 
-#### Scenario: AcceptanceCriteria formatted as Gherkin
+#### Scenario: Behaviour formatted as plain-English implementation bullets
 - **WHEN** the `GeneratedSpec` is returned
-- **THEN** each item in `AcceptanceCriteria` is a Gherkin-style scenario string starting with `Given`, `When`, or `Scenario:`
+- **THEN** each item in `Behaviour` is a plain-English sentence describing an implementation behaviour, and no item starts with `Given`, `When`, `Then`, or `Scenario:`
 
 #### Scenario: Section ordering is always stable
 - **WHEN** `GenerateAsync` is called multiple times with the same input
-- **THEN** the `GeneratedSpec` always has the same section order: Summary, AcceptanceCriteria, EdgeCases, OutOfScope, ComponentBreakdown
+- **THEN** the `GeneratedSpec` always has the same section order: Goal, Behaviour, EdgeCases, OutOfScope, FilesToChange
 
 ### Requirement: LLM response must be valid JSON matching GeneratedSpec schema
 The `SpecGeneratorAgent` SHALL validate that the LLM response parses to a valid `GeneratedSpec`. If parsing fails, the agent SHALL retry the prompt up to 2 additional times. If all attempts fail, the agent SHALL throw an `LlmFormatException`.

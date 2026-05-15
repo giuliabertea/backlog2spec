@@ -40,7 +40,8 @@
       "Bash(Get-ChildItem \"openspec/changes/semantic-keyword-extraction/specs\" -Recurse -File)",
       "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\\\\openspec\\\\specs\\\\llm-keyword-extractor\" -Force)",
       "Skill(opsx:propose)",
-      "Skill(opsx:propose:*)"
+      "Skill(opsx:propose:*)",
+      "Bash(Test-Path \"c:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\\\\openspec\\\\specs\\\\copilot-optimised-spec-format\\\\spec.md\")"
     ]
   }
 }

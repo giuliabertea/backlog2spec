@@ -45,7 +45,13 @@ public sealed class OutputRenderer : IOutputRenderer
 
         AnsiConsole.MarkupLine("[bold blue]── Files to Change ──────────────────────────────[/]");
         foreach (var f in spec.FilesToChange)
-            AnsiConsole.MarkupLine($"[white]  • {Markup.Escape(f)}[/]");
+        {
+            var colonIdx = f.IndexOf(':');
+            var line = colonIdx > 0
+                ? $"[bold white]  • {Markup.Escape(f[..colonIdx])}[/][white]:{Markup.Escape(f[(colonIdx + 1)..])}[/]"
+                : $"[white]  • {Markup.Escape(f)}[/]";
+            AnsiConsole.MarkupLine(line);
+        }
         AnsiConsole.WriteLine();
     }
 
@@ -214,7 +220,7 @@ public sealed class OutputRenderer : IOutputRenderer
             {
                 var colonIdx = f.IndexOf(':');
                 var line = colonIdx > 0
-                    ? $"- **{f[..colonIdx]}**:{f[colonIdx..]}"
+                    ? $"- **{f[..colonIdx]}**:{f[(colonIdx + 1)..]}"
                     : $"- {f}";
                 sb.AppendLine(line);
             }
