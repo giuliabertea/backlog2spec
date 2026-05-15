@@ -5,6 +5,8 @@ public sealed class AgentConfig
     public ProjectConfig Project { get; init; } = new();
     public ConventionsConfig Conventions { get; init; } = new();
     public AdoConfig Ado { get; init; } = new();
+    public string? DevRulesFile { get; init; }
+    public string? DevRulesContent { get; internal set; }
 }
 
 public sealed class ProjectConfig

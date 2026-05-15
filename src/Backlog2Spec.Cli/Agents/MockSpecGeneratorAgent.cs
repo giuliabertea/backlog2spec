@@ -14,15 +14,19 @@ public sealed class MockSpecGeneratorAgent : ISpecGeneratorAgent
     {
         return Task.FromResult(new GeneratedSpec
         {
-            Summary = "Mock spec for testing pipeline",
-            AcceptanceCriteria =
+            Goal = "Add a mock feature to validate the pipeline end-to-end. The mock returns fixed data to allow testing without an LLM call.",
+            Behaviour =
             [
-                "Given valid input, When processed, Then a success response is returned",
-                "Given invalid input, When processed, Then an error is returned"
+                "Return a fixed spec when called with any enriched ticket",
+                "Return an error result when input is flagged as invalid"
             ],
             EdgeCases = ["Null input", "Extremely large payload"],
             OutOfScope = "Authentication, Authorization",
-            ComponentBreakdown = ["API Endpoint", "Application Service", "Validation Layer"]
+            FilesToChange =
+            [
+                "src/Backlog2Spec.Cli/Agents/MockSpecGeneratorAgent.cs: return mock GeneratedSpec",
+                "src/Backlog2Spec.Cli/Agents/ISpecGeneratorAgent.cs: interface contract"
+            ]
         });
     }
 }

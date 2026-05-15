@@ -18,15 +18,19 @@
 - **THEN** the agent proceeds to score and fetch content from matching files
 
 ### Requirement: Score file paths by keyword relevance
-`CodebaseContextAgent` SHALL extract keywords from the `WorkItemDto` title by splitting on non-word characters, lowercasing, removing stop words, removing tokens shorter than 4 characters, and taking up to 5 distinct terms. It SHALL score each file path by counting how many keywords appear as substrings (case-insensitive) in the path string.
+`CodebaseContextAgent` SHALL obtain the keyword list by calling `IKeywordExtractor.ExtractAsync(workItem, ct)` rather than deriving it from the title using stop-word splitting. It SHALL score each source file path by counting how many keywords appear as substrings (case-insensitive) in the path string. The remainder of the scoring and file-fetch pipeline (top-N selection, content truncation) is unchanged.
 
-#### Scenario: File path matching ticket keyword scores above zero
-- **WHEN** the ticket title contains "Profitability" and a file path contains "profitability"
+#### Scenario: File path matching LLM-derived keyword scores above zero
+- **WHEN** `IKeywordExtractor` returns `["ingestion", "pipeline", "ILogger"]` and a file path contains "ingestion"
 - **THEN** that file path receives a score of at least 1
 
 #### Scenario: File path with no keyword match scores zero and is excluded
-- **WHEN** no keyword from the ticket title appears in a file path
+- **WHEN** no keyword from `IKeywordExtractor` appears in a file path
 - **THEN** that file is not included in the fetched results
+
+#### Scenario: Keyword extractor failure does not abort file fetch
+- **WHEN** `IKeywordExtractor.ExtractAsync` returns an empty list (due to fallback)
+- **THEN** `FetchRelevantFilesAsync` returns an empty list without throwing
 
 ### Requirement: Fetch content of top-scoring source files
 `CodebaseContextAgent` SHALL fetch file content for the top 3 file paths (by descending score, ties broken by path length ascending). Only files whose extension is in the whitelist (`.cs`, `.ts`, `.js`, `.py`, `.java`, `.go`, `.md`) SHALL be considered. Content SHALL be truncated to 800 characters. Each result SHALL be returned as a `CodeFileDto` with `Path`, `FileName` (last path segment), and `Content`.

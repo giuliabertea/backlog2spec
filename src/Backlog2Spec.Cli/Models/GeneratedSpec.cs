@@ -4,11 +4,11 @@ namespace Backlog2Spec.Cli.Models;
 
 public sealed class GeneratedSpec
 {
-    [JsonPropertyName("summary")]
-    public string Summary { get; init; } = string.Empty;
+    [JsonPropertyName("goal")]
+    public string Goal { get; init; } = string.Empty;
 
-    [JsonPropertyName("acceptanceCriteria")]
-    public List<string> AcceptanceCriteria { get; init; } = [];
+    [JsonPropertyName("behaviour")]
+    public List<string> Behaviour { get; init; } = [];
 
     [JsonPropertyName("edgeCases")]
     public List<string> EdgeCases { get; init; } = [];
@@ -16,6 +16,6 @@ public sealed class GeneratedSpec
     [JsonPropertyName("outOfScope")]
     public string OutOfScope { get; init; } = string.Empty;
 
-    [JsonPropertyName("componentBreakdown")]
-    public List<string> ComponentBreakdown { get; init; } = [];
+    [JsonPropertyName("filesToChange")]
+    public List<string> FilesToChange { get; init; } = [];
 }

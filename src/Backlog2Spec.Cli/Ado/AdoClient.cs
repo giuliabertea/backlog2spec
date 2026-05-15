@@ -51,6 +51,67 @@ public sealed class AdoClient : IAdoClient
         return MapToDto(id, workItem);
     }
 
+    public async Task<WorkItemHierarchyDto> GetWorkItemHierarchyAsync(int parentId, CancellationToken ct = default)
+    {
+        var config = await _configLoader.LoadAsync(ct);
+
+        WorkItemTrackingHttpClient client;
+        try
+        {
+            var credentials = new VssBasicCredential(string.Empty, _pat);
+            var connection = new VssConnection(new Uri(config.Ado.Organization), credentials);
+            client = connection.GetClient<WorkItemTrackingHttpClient>();
+        }
+        catch (Exception ex)
+        {
+            throw new AdoAuthException("Failed to connect to Azure DevOps. Check your PAT and organization URL.", ex);
+        }
+
+        WorkItem parent;
+        try
+        {
+            parent = await client.GetWorkItemAsync(config.Ado.Project, parentId, expand: WorkItemExpand.Relations, cancellationToken: ct);
+        }
+        catch (Exception ex) when (ex.Message.Contains("does not exist") || ex.Message.Contains("not found") || ex.Message.Contains("TF401232") || ex.Message.Contains("VS403417"))
+        {
+            throw new AdoNotFoundException(parentId);
+        }
+        catch (Exception ex) when (ex.Message.Contains("unauthorized") || ex.Message.Contains("Unauthorized") || ex.Message.Contains("Access Denied"))
+        {
+            throw new AdoAuthException("Authentication failed. Verify your PAT has the required permissions.", ex);
+        }
+
+        var childIds = ExtractChildIds(parent);
+        IReadOnlyList<WorkItemDto> children = [];
+
+        if (childIds.Count > 0)
+        {
+            var childWorkItems = await client.GetWorkItemsAsync(childIds, expand: WorkItemExpand.All, cancellationToken: ct);
+            children = childWorkItems
+                .Select(wi => MapToDto((int)wi.Id!, wi))
+                .ToList();
+        }
+
+        return new WorkItemHierarchyDto(MapToDto(parentId, parent), children);
+    }
+
+    private static List<int> ExtractChildIds(WorkItem workItem)
+    {
+        if (workItem.Relations is null) return [];
+
+        var ids = new List<int>();
+        foreach (var rel in workItem.Relations)
+        {
+            if (rel.Rel != "System.LinkTypes.Hierarchy-Forward") continue;
+            var url = rel.Url;
+            if (string.IsNullOrEmpty(url)) continue;
+            var lastSegment = url.Split('/').LastOrDefault();
+            if (int.TryParse(lastSegment, out var childId))
+                ids.Add(childId);
+        }
+        return ids;
+    }
+
     private static WorkItemDto MapToDto(int id, WorkItem workItem) => new()
     {
         Id = id,

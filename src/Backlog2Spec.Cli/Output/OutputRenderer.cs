@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using Backlog2Spec.Cli.Ado;
 using Backlog2Spec.Cli.Models;
 using Spectre.Console;
 
@@ -23,13 +25,13 @@ public sealed class OutputRenderer : IOutputRenderer
     {
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold blue]── Summary ──────────────────────────────────────[/]");
-        AnsiConsole.MarkupLine($"[white]{Markup.Escape(spec.Summary)}[/]");
+        AnsiConsole.MarkupLine("[bold blue]── Goal ─────────────────────────────────────────[/]");
+        AnsiConsole.MarkupLine($"[white]{Markup.Escape(spec.Goal)}[/]");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold blue]── Acceptance Criteria ──────────────────────────[/]");
-        foreach (var ac in spec.AcceptanceCriteria)
-            AnsiConsole.MarkupLine($"[white]  • {Markup.Escape(ac)}[/]");
+        AnsiConsole.MarkupLine("[bold blue]── Behaviour ────────────────────────────────────[/]");
+        foreach (var b in spec.Behaviour)
+            AnsiConsole.MarkupLine($"[white]  • {Markup.Escape(b)}[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold blue]── Edge Cases ───────────────────────────────────[/]");
@@ -41,9 +43,9 @@ public sealed class OutputRenderer : IOutputRenderer
         AnsiConsole.MarkupLine($"[white]{Markup.Escape(spec.OutOfScope)}[/]");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold blue]── Component Breakdown ──────────────────────────[/]");
-        foreach (var comp in spec.ComponentBreakdown)
-            AnsiConsole.MarkupLine($"[white]  • {Markup.Escape(comp)}[/]");
+        AnsiConsole.MarkupLine("[bold blue]── Files to Change ──────────────────────────────[/]");
+        foreach (var f in spec.FilesToChange)
+            AnsiConsole.MarkupLine($"[white]  • {Markup.Escape(f)}[/]");
         AnsiConsole.WriteLine();
     }
 
@@ -97,19 +99,15 @@ public sealed class OutputRenderer : IOutputRenderer
         sb.AppendLine();
         sb.AppendLine("---");
         sb.AppendLine();
-        sb.AppendLine("## Summary");
+        sb.AppendLine("## Goal");
         sb.AppendLine();
-        sb.AppendLine(spec.Summary);
+        sb.AppendLine(spec.Goal);
         sb.AppendLine();
-        sb.AppendLine("## Acceptance Criteria");
+        sb.AppendLine("## Behaviour");
         sb.AppendLine();
-        foreach (var ac in spec.AcceptanceCriteria)
-        {
-            sb.AppendLine("```gherkin");
-            sb.AppendLine(ac);
-            sb.AppendLine("```");
-            sb.AppendLine();
-        }
+        foreach (var b in spec.Behaviour)
+            sb.AppendLine($"- {b}");
+        sb.AppendLine();
         sb.AppendLine("## Edge Cases");
         sb.AppendLine();
         foreach (var ec in spec.EdgeCases)
@@ -119,14 +117,14 @@ public sealed class OutputRenderer : IOutputRenderer
         sb.AppendLine();
         sb.AppendLine(spec.OutOfScope);
         sb.AppendLine();
-        sb.AppendLine("## Component Breakdown");
+        sb.AppendLine("## Files to Change");
         sb.AppendLine();
-        foreach (var comp in spec.ComponentBreakdown)
+        foreach (var f in spec.FilesToChange)
         {
-            var colonIdx = comp.IndexOf(':');
+            var colonIdx = f.IndexOf(':');
             var line = colonIdx > 0
-                ? $"- **{comp[..colonIdx]}**:{comp[colonIdx..]}"
-                : $"- {comp}";
+                ? $"- **{f[..colonIdx]}**:{f[(colonIdx + 1)..]}"
+                : $"- {f}";
             sb.AppendLine(line);
         }
 
@@ -140,5 +138,99 @@ public sealed class OutputRenderer : IOutputRenderer
 
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
         AnsiConsole.MarkupLine($"[grey]→[/] [dim]Spec saved to {Markup.Escape(path)}[/]");
+    }
+
+    public void WriteHierarchyToFiles(WorkItemDto parent, IEnumerable<(WorkItemDto Item, GeneratedSpec Spec)> children, string outputDir)
+    {
+        var noBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
+        Directory.CreateDirectory(outputDir);
+
+        var childList = children.ToList();
+
+        var summary = new StringBuilder();
+        summary.AppendLine($"# {parent.WorkItemType}: {parent.Title}");
+        summary.AppendLine();
+        summary.AppendLine($"> Work Item: #{parent.Id}  ");
+        summary.AppendLine($"> Type: {parent.WorkItemType}  ");
+        summary.AppendLine($"> Generated: {DateTime.UtcNow:yyyy-MM-dd}");
+        summary.AppendLine();
+
+        if (!string.IsNullOrWhiteSpace(parent.Description))
+        {
+            summary.AppendLine("## Description");
+            summary.AppendLine();
+            summary.AppendLine(parent.Description);
+            summary.AppendLine();
+        }
+
+        summary.AppendLine("## Child Work Items");
+        summary.AppendLine();
+        summary.AppendLine("| ID | Title | Spec File |");
+        summary.AppendLine("|----|-------|-----------|");
+        foreach (var (item, _) in childList)
+        {
+            var fileName = $"{item.Id}-{Slugify(item.Title)}.md";
+            summary.AppendLine($"| #{item.Id} | {item.Title} | [{fileName}]({fileName}) |");
+        }
+
+        File.WriteAllText(Path.Combine(outputDir, "_summary.md"), summary.ToString(), noBom);
+        AnsiConsole.MarkupLine($"[grey]→[/] [dim]Summary saved to {Markup.Escape(Path.Combine(outputDir, "_summary.md"))}[/]");
+
+        foreach (var (item, spec) in childList)
+        {
+            var fileName = $"{item.Id}-{Slugify(item.Title)}.md";
+            var filePath = Path.Combine(outputDir, fileName);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"# Spec: {item.Title}");
+            sb.AppendLine();
+            sb.AppendLine($"> Work Item: #{item.Id}  ");
+            sb.AppendLine($"> Generated: {DateTime.UtcNow:yyyy-MM-dd}");
+            sb.AppendLine();
+            sb.AppendLine("---");
+            sb.AppendLine();
+            sb.AppendLine("## Goal");
+            sb.AppendLine();
+            sb.AppendLine(spec.Goal);
+            sb.AppendLine();
+            sb.AppendLine("## Behaviour");
+            sb.AppendLine();
+            foreach (var b in spec.Behaviour)
+                sb.AppendLine($"- {b}");
+            sb.AppendLine();
+            sb.AppendLine("## Edge Cases");
+            sb.AppendLine();
+            foreach (var ec in spec.EdgeCases)
+                sb.AppendLine($"- {ec}");
+            sb.AppendLine();
+            sb.AppendLine("## Out of Scope");
+            sb.AppendLine();
+            sb.AppendLine(spec.OutOfScope);
+            sb.AppendLine();
+            sb.AppendLine("## Files to Change");
+            sb.AppendLine();
+            foreach (var f in spec.FilesToChange)
+            {
+                var colonIdx = f.IndexOf(':');
+                var line = colonIdx > 0
+                    ? $"- **{f[..colonIdx]}**:{f[colonIdx..]}"
+                    : $"- {f}";
+                sb.AppendLine(line);
+            }
+
+            File.WriteAllText(filePath, sb.ToString(), noBom);
+            AnsiConsole.MarkupLine($"[grey]→[/] [dim]Spec saved to {Markup.Escape(filePath)}[/]");
+        }
+    }
+
+    internal static string Slugify(string title, int maxLength = 60)
+    {
+        var slug = title.ToLowerInvariant();
+        slug = Regex.Replace(slug, @"[^a-z0-9]+", "-");
+        slug = slug.Trim('-');
+        if (slug.Length > maxLength)
+            slug = slug[..maxLength].TrimEnd('-');
+        return slug;
     }
 }

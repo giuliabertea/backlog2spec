@@ -2,7 +2,7 @@
 
 A CLI tool that turns an Azure DevOps work item into a ready-to-use, structured spec — in seconds.
 
-Given a work item ID, it fetches the ticket from ADO, enriches it with AI (filling in missing acceptance criteria, edge cases, and ambiguities), optionally pulls relevant source files from your repository for grounding, then generates a Gherkin-style spec tailored to your project's stack and conventions.
+Given a work item ID, it fetches the ticket from ADO, enriches it with AI (filling in missing acceptance criteria, edge cases, and ambiguities), optionally pulls relevant source files from your repository for grounding, then generates a structured spec tailored to your project's stack and conventions.
 
 The output renders in the terminal with syntax highlighting, can be saved as a markdown file, or piped as JSON for automation.
 
@@ -106,7 +106,6 @@ Create `backlog-2-spec.json` in the root of **your project** (not the Backlog2Sp
   "conventions": {
     "naming": "PascalCase classes, camelCase fields",
     "folderStructure": "Feature-based",
-    "specStyle": "Gherkin",
     "diPattern": "Constructor injection"
   },
   "ado": {
@@ -114,11 +113,12 @@ Create `backlog-2-spec.json` in the root of **your project** (not the Backlog2Sp
     "project": "YourProject",
     "repoName": "YourRepo",
     "branch": "main"
-  }
+  },
+  "devRulesFile": "dev-rules.md"
 }
 ```
 
-Required fields: `ado.organization`, `ado.project`, `project.name`. The `repoName` and `branch` fields are optional — when set, the tool fetches relevant source files from your repo and feeds them as context to the AI.
+Required fields: `ado.organization`, `ado.project`, `project.name`. The `repoName` and `branch` fields are optional — when set, the tool fetches relevant source files from your repo and feeds them as context to the AI. The `devRulesFile` field is optional — see the section below.
 
 **Commit this file to your project repo.** It contains no secrets (only org name and project name). Committing it means every developer who clones your project gets the config automatically.
 
@@ -200,7 +200,7 @@ dotnet backlog-2-spec spec 12345 --output ./specs/feature-12345.md
 
 ```bash
 dotnet backlog-2-spec spec 12345 --raw
-dotnet backlog-2-spec spec 12345 --raw | jq .summary
+dotnet backlog-2-spec spec 12345 --raw | jq .goal
 ```
 
 ### Dry run without external calls
@@ -211,32 +211,138 @@ dotnet backlog-2-spec spec 12345 --mock
 
 Runs the full pipeline with mock implementations — no ADO or AI calls. Useful for testing config and output formatting.
 
----
-
-## Keeping the tool up to date
-
-When you pull changes from this repo, rebuild and reinstall:
+### Export all specs for a Feature or Epic
 
 ```bash
-cd path/to/Backlog2Spec
-git pull
-dotnet pack src/Backlog2Spec.Cli -o ./nupkg
-dotnet tool update --local --add-source ./nupkg Backlog2Spec.Cli
+dotnet backlog-2-spec spec 12345 --feature
+dotnet backlog-2-spec spec 12345 --epic
 ```
 
-Use `--global` instead of `--local` if you installed globally.
+Fetches the parent work item and all its children, generates a spec for each child, and writes them to a folder under `spec/<id>-<slug>/`. A `_summary.md` index file is also created with a table linking to each child spec.
+
+`--feature` and `--epic` are mutually exclusive. If the work item type does not match the flag used, the tool reports an error.
+
+---
+
+## Spec output format
+
+Each generated spec contains five sections:
+
+| Section | Description |
+|---|---|
+| **Goal** | 1–3 sentences. The first states the capability being built; the others (optional) add outcome or non-obvious constraints. |
+| **Behaviour** | Plain-English bullets describing what the implementation must do, one per distinct behaviour. Written from the developer's perspective. |
+| **Edge Cases** | Boundary conditions and failure scenarios the developer should handle. |
+| **Out of Scope** | Comma-separated list of things explicitly excluded from this work item. |
+| **Files to Change** | File paths with a one-line description of what changes in each. Resolved from actual source files when codebase context is available. |
+
+Example output (console):
+
+```
+── Goal ─────────────────────────────────────────
+Add rate limiting to the login endpoint so accounts lock after 5 failed attempts.
+The lockout state is persisted per user and resets on successful login.
+
+── Behaviour ────────────────────────────────────
+  • Increment a failed attempt counter on each wrong password
+  • Lock the account after 5 consecutive failures
+  • Return 423 with a lockout message when the account is locked
+  • Reset the counter on successful login
+  • Normalize email to lowercase before lookup
+
+── Edge Cases ───────────────────────────────────
+  ⚠ Mixed-case email must match existing accounts
+  ⚠ Concurrent login attempts must not bypass the counter
+
+── Out of Scope ─────────────────────────────────
+SSO, session timeout, password reset
+
+── Files to Change ──────────────────────────────
+  • src/Services/AuthService.cs: add EnforceLockout() and ResetAttempts()
+  • src/Repositories/UserRepository.cs: add UpdateFailedAttempts()
+  • src/Controllers/LoginController.cs: return 423 on locked account
+```
+
+---
+
+## Project rules file
+
+The `devRulesFile` field in `backlog-2-spec.json` points to a markdown file that gets injected verbatim as a **Development Rules** section into both the enrichment and spec generation prompts.
+
+Use it to encode team-specific constraints that the AI should always respect when analysing tickets and writing specs — things that are not expressible through the structured config fields.
+
+### When to use it
+
+Good candidates for the rules file:
+
+- Architectural constraints ("never put business logic in controllers")
+- Patterns that must be followed ("always use the Result<T> pattern, never throw exceptions from services")
+- Things to avoid ("do not use AutoMapper — map manually")
+- Layer ownership ("the domain layer must not depend on infrastructure")
+- Naming conventions too nuanced for a one-liner ("commands are named VerbNounCommand, handlers are VerbNounCommandHandler")
+
+### How to set it up
+
+1. Create the rules file in your project root (or anywhere — the path is resolved relative to `backlog-2-spec.json`):
+
+   ```markdown
+   # dev-rules.md
+
+   - Never put business logic in controllers. Controllers only validate input, call a service, and return a response.
+   - All service methods return Result<T>. Never throw exceptions from the service layer.
+   - Do not use AutoMapper. All object mapping is done manually in dedicated mapper classes.
+   - The domain layer must not reference any infrastructure or application layer types.
+   - Repository interfaces live in the domain layer; implementations live in the infrastructure layer.
+   - Commands and queries follow the MediatR pattern: VerbNounCommand / VerbNounQuery, handled by VerbNounCommandHandler / VerbNounQueryHandler.
+   ```
+
+2. Reference it in `backlog-2-spec.json`:
+
+   ```json
+   {
+     "devRulesFile": "dev-rules.md"
+   }
+   ```
+
+   The path is relative to the config file. You can also use an absolute path or a subdirectory:
+
+   ```json
+   {
+     "devRulesFile": "docs/backlog2spec-rules.md"
+   }
+   ```
+
+3. Commit both files:
+
+   ```bash
+   git add backlog-2-spec.json dev-rules.md
+   git commit -m "add backlog2spec project rules"
+   ```
+
+### How it affects output
+
+When the rules file is set, both AI steps include a `## Development Rules` section built from its content:
+
+- **Enrichment** — the AI uses the rules when inferring affected components and identifying missing acceptance criteria, so it won't suggest components that violate your layering rules
+- **Spec generation** — the AI uses the rules when deciding which files to touch and how to describe the behaviour, so specs won't suggest patterns your team has explicitly ruled out
+
+If `devRulesFile` is not set, both steps run without any injected rules — the structured config fields (`architecture`, `naming`, etc.) still apply.
 
 ---
 
 ## What you gain
 
-**Specs in minutes, not hours.** Writing a complete Gherkin spec from scratch for a mid-size ticket easily takes 30–60 minutes. Backlog2Spec does it in under a minute, with a result that already matches your project's naming conventions, test framework, and architecture.
+**Specs in minutes, not hours.** Writing a complete structured spec from scratch for a mid-size ticket easily takes 30–60 minutes. Backlog2Spec does it in under a minute, with a result that already matches your project's naming conventions, test framework, and architecture.
 
 **Catches what tickets miss.** Most backlog items skip edge cases, have underspecified acceptance criteria, or leave ambiguities implicit. The enrichment step surfaces these explicitly — so the spec you get is already more thorough than what the ticket contained.
 
-**Grounded in your actual codebase.** When `repoName` is configured, the tool fetches files relevant to the ticket from your ADO repository and includes them as context. The generated spec references real components, existing patterns, and the correct layer boundaries — not generic placeholders.
+**Grounded in your actual codebase.** When `repoName` is configured, the tool fetches files relevant to the ticket from your ADO repository and includes them as context. The generated spec references real file paths, existing class names, and the correct layer boundaries — not generic placeholders.
 
-**Consistent across the team.** Every spec produced by the tool follows the same structure and style. Gherkin scenarios, component lists, test strategy — all formatted the same way, regardless of who runs it.
+**Optimised for AI coding assistants.** The output format (Goal + Behaviour + Files to Change) is designed to be pasted directly into GitHub Copilot or similar tools. Plain-English bullets and concrete file paths give the assistant high-signal, low-token context — more actionable than a BDD test spec.
+
+**Consistent across the team.** Every spec produced by the tool follows the same structure and style, regardless of who runs it. Pair it with the `devRulesFile` to encode your team's architectural decisions and have them applied automatically to every spec.
+
+**Scales to Features and Epics.** The `--feature` and `--epic` flags let you generate specs for every child work item in one command, with a summary index file linking them all together.
 
 ---
 
@@ -257,12 +363,28 @@ Mock mode is detected at startup (before the DI container is built), so it works
 
 ---
 
+## Keeping the tool up to date
+
+When you pull changes from this repo, rebuild and reinstall:
+
+```bash
+cd path/to/Backlog2Spec
+git pull
+dotnet pack src/Backlog2Spec.Cli -o ./nupkg
+dotnet tool update --local --add-source ./nupkg Backlog2Spec.Cli
+```
+
+Use `--global` instead of `--local` if you installed globally.
+
+---
+
 ## Troubleshooting
 
 | Error | Cause | Fix |
 |---|---|---|
 | `Configuration error: 'backlog-2-spec.json' not found` | No config file in CWD or any parent | Create `backlog-2-spec.json` in your project root |
 | `Missing required field: ado.organization` | Config file incomplete | Add the missing field |
+| `Configuration error: devRulesFile not found: '...'` | Path in `devRulesFile` does not exist | Check the path is relative to `backlog-2-spec.json` and the file exists |
 | `Authentication error: Failed to connect to Azure DevOps` | Invalid PAT or org URL | Re-set `Ado:Pat` and verify `ado.organization` |
 | `Authentication error: Authentication failed` | PAT expired or wrong scope | Generate a new PAT with Work Items: Read (and Code: Read if using repo context) |
 | `AI response error: LLM returned invalid JSON` | Model returned malformed JSON after 3 retries | Check deployment name and quota; try again |

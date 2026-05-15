@@ -65,7 +65,8 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
 
             try
             {
-                var result = JsonSerializer.Deserialize<GeneratedSpec>(lastRaw, JsonOptions);
+                var json = ExtractJson(lastRaw);
+                var result = JsonSerializer.Deserialize<GeneratedSpec>(json, JsonOptions);
                 if (result is not null)
                 {
                     _logger.LogInformation("Spec generation completed for work item {WorkItemId}", enriched.WorkItemId);
@@ -88,6 +89,10 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
             ? string.Join("\n\n", codebaseContext.Select(f => $"File: {f.Path}\n---\n{f.Content}"))
             : "No codebase context available.";
 
+        var devRulesBlock = string.IsNullOrEmpty(config.DevRulesContent)
+            ? string.Empty
+            : $"## Development Rules\n\n{config.DevRulesContent}\n\n";
+
         return _promptTemplate
             .Replace("{{projectName}}", config.Project.Name)
             .Replace("{{language}}", config.Project.Language)
@@ -97,6 +102,7 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
             .Replace("{{naming}}", config.Conventions.Naming)
             .Replace("{{specStyle}}", config.Conventions.SpecStyle)
             .Replace("{{codebaseContext}}", codebaseContextText)
+            .Replace("{{devRules}}", devRulesBlock)
             .Replace("{{workItemId}}", enriched.WorkItemId.ToString())
             .Replace("{{title}}", enriched.Title)
             .Replace("{{missingAcceptanceCriteria}}", string.Join(", ", enriched.MissingAcceptanceCriteria))
@@ -104,6 +110,13 @@ public sealed class SpecGeneratorAgent : ISpecGeneratorAgent
             .Replace("{{constraints}}", string.Join(", ", enriched.Constraints))
             .Replace("{{affectedComponents}}", string.Join(", ", enriched.AffectedComponents))
             .Replace("{{ambiguities}}", string.Join(", ", enriched.Ambiguities));
+    }
+
+    private static string ExtractJson(string raw)
+    {
+        var start = raw.IndexOf('{');
+        var end = raw.LastIndexOf('}');
+        return start >= 0 && end > start ? raw[start..(end + 1)] : raw;
     }
 
     private static string LoadPrompt()

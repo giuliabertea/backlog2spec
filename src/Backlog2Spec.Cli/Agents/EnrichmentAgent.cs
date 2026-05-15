@@ -65,7 +65,8 @@ public sealed class EnrichmentAgent : IEnrichmentAgent
 
             try
             {
-                var result = JsonSerializer.Deserialize<EnrichedTicket>(lastRaw, JsonOptions);
+                var json = ExtractJson(lastRaw);
+                var result = JsonSerializer.Deserialize<EnrichedTicket>(json, JsonOptions);
                 if (result is not null)
                 {
                     _logger.LogInformation("Enrichment completed for work item {WorkItemId}", workItem.Id);
@@ -88,6 +89,10 @@ public sealed class EnrichmentAgent : IEnrichmentAgent
             ? string.Join("\n\n", codebaseContext.Select(f => $"File: {f.Path}\n---\n{f.Content}"))
             : "No codebase context available.";
 
+        var devRulesBlock = string.IsNullOrEmpty(config.DevRulesContent)
+            ? string.Empty
+            : $"## Development Rules\n\n{config.DevRulesContent}\n\n";
+
         return _promptTemplate
             .Replace("{{projectName}}", config.Project.Name)
             .Replace("{{language}}", config.Project.Language)
@@ -96,11 +101,19 @@ public sealed class EnrichmentAgent : IEnrichmentAgent
             .Replace("{{naming}}", config.Conventions.Naming)
             .Replace("{{diPattern}}", config.Conventions.DiPattern)
             .Replace("{{codebaseContext}}", codebaseContextText)
+            .Replace("{{devRules}}", devRulesBlock)
             .Replace("{{workItemId}}", workItem.Id.ToString())
             .Replace("{{title}}", workItem.Title)
             .Replace("{{workItemType}}", workItem.WorkItemType)
             .Replace("{{description}}", workItem.Description)
             .Replace("{{acceptanceCriteria}}", workItem.AcceptanceCriteria);
+    }
+
+    private static string ExtractJson(string raw)
+    {
+        var start = raw.IndexOf('{');
+        var end = raw.LastIndexOf('}');
+        return start >= 0 && end > start ? raw[start..(end + 1)] : raw;
     }
 
     private static string LoadPrompt()

@@ -28,7 +28,22 @@ public sealed class ConfigLoader
         }
 
         ValidateRequiredFields(config);
+        await LoadDevRulesAsync(config, configPath, ct);
         return config;
+    }
+
+    private static async Task LoadDevRulesAsync(AgentConfig config, string configPath, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(config.DevRulesFile))
+            return;
+
+        var configDir = Path.GetDirectoryName(configPath) ?? Directory.GetCurrentDirectory();
+        var rulesPath = Path.GetFullPath(config.DevRulesFile, configDir);
+
+        if (!File.Exists(rulesPath))
+            throw new ConfigException($"devRulesFile not found: '{rulesPath}'");
+
+        config.DevRulesContent = await File.ReadAllTextAsync(rulesPath, ct);
     }
 
     private static string FindConfigFile()

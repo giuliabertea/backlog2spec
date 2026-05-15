@@ -36,7 +36,11 @@
       "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\\\\openspec\\\\changes\\\\migrate-to-azure-ai-foundry\\\\specs\\\\azure-ai-connector\" -Force)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\" -Recurse -Include *.cs, *.json, *.csproj)",
       "Bash(Select-Object FullName)",
-      "Bash(dir openspec *)"
+      "Bash(dir openspec *)",
+      "Bash(Get-ChildItem \"openspec/changes/semantic-keyword-extraction/specs\" -Recurse -File)",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\gbert\\\\Desktop\\\\Giulia\\\\Projects\\\\Backlog2Spec\\\\openspec\\\\specs\\\\llm-keyword-extractor\" -Force)",
+      "Skill(opsx:propose)",
+      "Skill(opsx:propose:*)"
     ]
   }
 }

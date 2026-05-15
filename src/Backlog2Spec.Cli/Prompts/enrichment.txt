@@ -78,7 +78,7 @@ Acceptance Criteria: User can log in with valid credentials.
 
 {{codebaseContext}}
 
-## Work Item to Analyze
+{{devRules}}## Work Item to Analyze
 
 Work Item ID: {{workItemId}}
 Title: {{title}}
