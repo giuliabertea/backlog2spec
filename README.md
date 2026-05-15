@@ -265,6 +265,47 @@ SSO, session timeout, password reset
 
 ---
 
+## Using specs with AI coding assistants
+
+The spec output format is designed to be pasted directly into GitHub Copilot Chat, Cursor, or any similar AI coding assistant.
+
+### Single PBI
+
+Save the spec to a file with `--output`, then attach it in Copilot Chat and use:
+
+```
+Implement the spec in the attached file.
+Follow the "Files to Change" section exactly — only touch the listed files.
+Do not implement anything listed under "Out of Scope".
+```
+
+Or paste the spec content inline and prepend the same instruction.
+
+### Full feature (multiple PBIs)
+
+When you export a feature with `--feature` or `--epic`, a folder of spec files is created under `spec/<id>-<slug>/`. Give Copilot this prompt, replacing `<folder>` with the actual folder name:
+
+```
+Implement the following feature step by step.
+
+The feature spec is in `spec/<folder>/00-feature.md`.
+Each PBI spec is a numbered file in the same folder.
+
+Rules:
+1. Read the feature spec first to understand the overall goal and scope.
+2. Implement each PBI in file order (01, 02, …), one at a time.
+3. For each PBI, follow the "Files to Change" section exactly — only touch the listed files.
+4. Respect the "Out of Scope" section: do not implement anything listed there.
+5. After each PBI, stop and summarise what you changed before moving to the next.
+6. Do not refactor or improve code outside of what the spec asks for.
+
+Start with the feature spec, confirm your understanding of the goal, then begin PBI 01.
+```
+
+> **Tip:** In Copilot Workspace you can attach all spec files directly — replace the file path references with *"use the attached spec files"* and omit the folder reference.
+
+---
+
 ## Project rules file
 
 The `devRulesFile` field in `backlog-2-spec.json` points to a markdown file that gets injected verbatim as a **Development Rules** section into both the enrichment and spec generation prompts.
